@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador da API de Despensa</title>
+    <!-- Incluindo o Tailwind CSS para um estilo moderno e limpo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo a fonte Inter para uma melhor aparência -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Aplicando a fonte Inter ao corpo da página */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* um cinza um pouco mais suave */
+        }
+        /* Efeito de transição suave nos botões e na tabela */
+        button, table {
+            transition: all 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="container mx-auto max-w-5xl">
+        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+            
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Painel de Verificação da API</h1>
+            <p id="current-endpoint" class="text-gray-500 mb-8 h-6">Selecione uma área para visualizar os produtos.</p>
+
+            <!-- Botões para selecionar qual parte da API visualizar -->
+            <div class="flex flex-wrap gap-3 md:gap-4 mb-8">
+                <button onclick="fetchData('/pantry')" class="flex-grow md:flex-grow-0 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Ver Despensa
+                </button>
+                <button onclick="fetchData('/fridge')" class="flex-grow md:flex-grow-0 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Ver Geladeira
+                </button>
+                 <button onclick="fetchData('/freezer')" class="flex-grow md:flex-grow-0 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Ver Congelador
+                </button>
+                 <button onclick="fetchData('/shopping-list')" class="flex-grow md:flex-grow-0 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transform hover:scale-105 shadow-md hover:shadow-lg">
+                    Ver Lista de Compras
+                </button>
+            </div>
+
+            <!-- Área de status para mostrar mensagens ao utilizador -->
+            <div id="status" class="mb-4 text-gray-600 italic h-6"></div>
+
+            <!-- Tabela onde os resultados serão exibidos -->
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full bg-white">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome do Produto</th>
+                            <th class="py-3 px-6 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantidade</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body" class="divide-y divide-gray-200">
+                        <!-- As linhas de dados serão injetadas aqui pelo JavaScript -->
+                        <tr>
+                            <td colspan="3" class="p-6 text-center text-gray-400">Nenhum dado carregado ainda.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // URL base da sua API. Altere a porta se for diferente.
+        const BASE_URL = 'http://localhost:8080';
+
+        // Referências aos elementos da página que vamos manipular
+        const statusLabel = document.getElementById('status');
+        const tableBody = document.getElementById('table-body');
+        const currentEndpointLabel = document.getElementById('current-endpoint');
+
+        /**
+         * Função principal que busca os dados da API
+         * @param {string} endpointPath - O caminho base do recurso (ex: '/pantry')
+         */
+        async function fetchData(endpointPath) {
+            // A URL correta para LISTAR itens, baseada na sua BaseController (@GetMapping("/items"))
+            const fullUrl = `${BASE_URL}${endpointPath}/items`;
+
+            currentEndpointLabel.textContent = `A carregar: GET ${fullUrl}`;
+            statusLabel.textContent = 'A comunicar com a API...';
+            statusLabel.className = 'mb-4 text-blue-600 italic h-6';
+            tableBody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-400 animate-pulse">A carregar...</td></tr>';
+
+            try {
+                // Faz a chamada GET para a sua API local
+                const response = await fetch(fullUrl);
+
+                // Verifica se a resposta foi bem-sucedida (status 200-299)
+                if (!response.ok) {
+                    throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+                }
+
+                // Converte a resposta de JSON para um objeto JavaScript
+                const data = await response.json();
+
+                // Chama a função para renderizar os dados na tabela
+                renderTable(data);
+                statusLabel.textContent = 'Dados carregados com sucesso!';
+                statusLabel.className = 'mb-4 text-green-600 italic font-semibold h-6';
+
+            } catch (error) {
+                console.error('Detalhes do erro:', error);
+                statusLabel.textContent = `Falha ao carregar. Verifique se a sua API está a rodar e se o endpoint ${fullUrl} está correto.`;
+                statusLabel.className = 'mb-4 text-red-600 font-semibold h-6';
+                tableBody.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500">Falha ao conectar à API.</td></tr>`;
+                currentEndpointLabel.textContent = 'Selecione uma área para visualizar os produtos.';
+            }
+        }
+
+        /**
+         * Renderiza os dados recebidos da API numa tabela HTML
+         * @param {Array<Object>} data - Um array de objetos, onde cada objeto é um produto
+         */
+        function renderTable(data) {
+            // Limpa qualquer conteúdo anterior da tabela
+            tableBody.innerHTML = '';
+
+            // Se não houver dados, exibe uma mensagem
+            if (!data || data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-gray-500">Nenhum item encontrado neste local.</td></tr>';
+                return;
+            }
+
+            // Itera sobre cada item (produto) e cria uma linha na tabela
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                // Adapte os nomes aqui se os campos no seu JSON forem diferentes
+                // Ex: item.id, item.name, item.quantity
+                row.innerHTML = `
+                    <td class="py-4 px-6 text-sm font-medium text-gray-600">${item.id || 'N/A'}</td>
+                    <td class="py-4 px-6 text-sm font-semibold text-gray-900">${item.name || 'Nome não disponível'}</td>
+                    <td class="py-4 px-6 text-sm text-gray-500">${item.quantity !== undefined ? item.quantity : 'N/A'}</td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+    </script>
+
+</body>
+</html>
